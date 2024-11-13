@@ -6,7 +6,6 @@ import {
   IoHome,
   IoPeople,
   IoSettingsOutline,
-  IoLogoTelegram,
   IoPersonCircleOutline,
   IoPersonOutline,
 } from "react-icons/io5";
@@ -76,7 +75,7 @@ const SideBar = () => {
                 target="_blank"
                 className="flex items-center justify-end lg:justify-center sm:px-5 py-4 sm:py-2 text-white hover:bg-slate-900 group"
               >
-                <IoLogoTelegram size={iconWidth} className="m-1 sm:m-0" />
+                <IoPersonCircleOutline size={iconWidth} className="m-1 sm:m-0" />
                 <span className="ms-3 hidden lg:block">News</span>
               </Link>
             </li>
