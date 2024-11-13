@@ -62,48 +62,51 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     const emoji = emojiObject.emoji;
     setMessage((prevMessage) => prevMessage + emoji);
   };
-
   const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      onSendMessage(message);
-      setAllMoves((prevMoves) => [...prevMoves, message]);
-      setMessage("");
+  if (e.key === "Enter") {
+    onSendMessage(message);
+    setAllMoves((prevMoves) => [...prevMoves, message]);
+    setMessage("");
 
-      const data = {
-        max_tokens: 1000,
-        messages: [
-          {
-            content:
-              "you are a chess expert when user give you steps of his game moves then you will give him his next move with explanation.",
-            role: "system",
+    const data = {
+      max_tokens: 1000,
+      messages: [
+        {
+          content:
+            "you are a chess expert when user give you steps of his game moves then you will give him his next move with explanation.",
+          role: "system",
+        },
+        { content: allMoves.join(" "), role: "user" },
+      ],
+      model: "gpt-3.5-turbo",
+      stream: false,
+      temperature: 0.7,
+    };
+
+    try {
+      const response = await axios.post(
+        "https://us-central1-aia-app-4a84d.cloudfunctions.net/api/chat-completion",
+        data,
+        {
+          headers: {
+            Host: "us-central1-aia-app-4a84d.cloudfunctions.net",
+            "Content-Type": "application/json",
+            "Accept-Encoding": "gzip",
+            "User-Agent": "okhttp/4.10.0",
           },
-          { content: allMoves.join(" "), role: "user" },
-        ],
-        model: "gpt-3.5-turbo",
-        stream: false,
-        temperature: 0.7,
-      };
+        }
+      );
 
-      try {
-        const response = await axios.post(
-          "https://us-central1-aia-app-4a84d.cloudfunctions.net/api/chat-completion",
-          data,
-          {
-            headers: {
-              Host: "us-central1-aia-app-4a84d.cloudfunctions.net",
-              "Content-Type": "application/json",
-              "Accept-Encoding": "gzip",
-              "User-Agent": "okhttp/4.10.0",
-            },
-          }
-        );
-        const aiResponse = response.data.content;
-        onSendMessage(aiResponse);
-      } catch (error) {
-        console.error("Error sending message to AI:", error);
-      }
+      // Check if the response has a valid content field and handle it
+      const aiResponse = response.data.content || "No response from AI";
+      onSendMessage(aiResponse);
+    } catch (error) {
+      console.error("Error sending message to AI:", error);
+      onSendMessage("Error: Could not retrieve response from AI.");
     }
-  };
+  }
+};
+  
 
   const handleLikeButtonClick = () => {
     navigator.clipboard.writeText(currentFEN).then(() => {
