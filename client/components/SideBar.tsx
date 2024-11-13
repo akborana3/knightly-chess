@@ -6,6 +6,8 @@ import {
   IoHome,
   IoPeople,
   IoSettingsOutline,
+  IoLogoTelegram,
+  IoPersonCircleOutline,
   IoPersonOutline,
 } from "react-icons/io5";
 import { useDisclosure } from "@nextui-org/react";
@@ -50,7 +52,7 @@ const SideBar = () => {
           >
             <Image
               src="/images/horse.png"
-              alt="Knightly Logo"
+              alt="KV Logo"
               width={28}
               height={28}
             />
@@ -74,7 +76,7 @@ const SideBar = () => {
                 target="_blank"
                 className="flex items-center justify-end lg:justify-center sm:px-5 py-4 sm:py-2 text-white hover:bg-slate-900 group"
               >
-                <IoPersonOutline size={iconWidth} className="m-1 sm:m-0" />
+                <IoLogoTelegram size={iconWidth} className="m-1 sm:m-0" />
                 <span className="ms-3 hidden lg:block">News</span>
               </Link>
             </li>
