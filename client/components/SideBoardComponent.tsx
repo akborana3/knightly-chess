@@ -69,50 +69,51 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     setAllMoves((prevMoves) => [...prevMoves, message]);
     setMessage("");
 
+    const systemPrompt = "you are a chess expert when user give you steps of his game moves then you will give him his next move with explanation";
+    const userPrompt = allMoves.join(" ");
+
     const data = {
-      max_tokens: 1000,
+      model: "gpt-4o",
+      temperature: 0.9,
       messages: [
-        {
-          content:
-            "you are a chess expert when user give you steps of his game moves then you will give him his next move with explanation.",
-          role: "system",
-        },
-        { content: allMoves.join(" "), role: "user" },
-      ],
-      model: "gpt-3.5-turbo",
-      stream: false,
-      temperature: 0.7,
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
     };
 
     try {
       const response = await axios.post(
-        "https://us-central1-aia-app-4a84d.cloudfunctions.net/api/chat-completion",
+        "https://mpzxsmlptc4kfw5qw2h6nat6iu0hvxiw.lambda-url.us-east-2.on.aws/process",
         data,
         {
           headers: {
-            Host: "us-central1-aia-app-4a84d.cloudfunctions.net",
-            "Content-Type": "application/json",
-            "Accept-Encoding": "gzip",
-            "User-Agent": "okhttp/4.10.0",
-          },
+            "Authorization": "Bearer sk-proj-hZn6l5KJd6n8kLJzHzyAT3BlbkFJitztuVQn17ElVhezrFyI",
+            "Content-Type": "application/json; charset=UTF-8"
+          }
         }
       );
 
-      // Check if response has expected structure and content
-      if (response && response.data && response.data.content) {
-        const aiResponse = response.data.content;
+      if (response && response.data && response.data.choices) {
+        const aiResponse = response.data.choices[0].message.content;
         onSendMessage(aiResponse);
       } else {
-        console.error("Unexpected response structure:", response.data);
+        console.error("Unexpected response format:", response.data);
         onSendMessage("Error: AI response format was not as expected.");
       }
     } catch (error) {
-      // Log specific error details
       if (axios.isAxiosError(error)) {
-        console.error("Axios error:", error.response?.data || error.message);
-        onSendMessage(
-          `Error: ${error.response?.data?.message || error.message}`
-        );
+        if (error.code === "ECONNABORTED") {
+          console.error("Request Timeout:", error.message);
+          onSendMessage("Error: Request timed out.");
+        } else if (!error.response) {
+          console.error("Network Error:", error.message);
+          onSendMessage("Error: Network error, please check your connection.");
+        } else {
+          console.error("Axios error:", error.response?.data || error.message);
+          onSendMessage(
+            `Error: ${error.response?.data?.message || error.message}`
+          );
+        }
       } else {
         console.error("General error:", error);
         onSendMessage("Error: Could not retrieve response from AI.");
@@ -120,7 +121,6 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   }
 };
-  
   
 
   const handleLikeButtonClick = () => {
