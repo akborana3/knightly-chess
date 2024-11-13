@@ -89,7 +89,8 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
           headers: {
             "Authorization": "Bearer sk-proj-hZn6l5KJd6n8kLJzHzyAT3BlbkFJitztuVQn17ElVhezrFyI",
             "Content-Type": "application/json; charset=UTF-8"
-          }
+          },
+          timeout: 20000
         }
       );
 
