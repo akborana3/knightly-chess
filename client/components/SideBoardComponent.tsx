@@ -62,6 +62,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     const emoji = emojiObject.emoji;
     setMessage((prevMessage) => prevMessage + emoji);
   };
+
   const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
   if (e.key === "Enter") {
     onSendMessage(message);
@@ -97,15 +98,29 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         }
       );
 
-      // Check if the response has a valid content field and handle it
-      const aiResponse = response.data.content || "No response from AI";
-      onSendMessage(aiResponse);
+      // Check if response has expected structure and content
+      if (response && response.data && response.data.content) {
+        const aiResponse = response.data.content;
+        onSendMessage(aiResponse);
+      } else {
+        console.error("Unexpected response structure:", response.data);
+        onSendMessage("Error: AI response format was not as expected.");
+      }
     } catch (error) {
-      console.error("Error sending message to AI:", error);
-      onSendMessage("Error: Could not retrieve response from AI.");
+      // Log specific error details
+      if (axios.isAxiosError(error)) {
+        console.error("Axios error:", error.response?.data || error.message);
+        onSendMessage(
+          `Error: ${error.response?.data?.message || error.message}`
+        );
+      } else {
+        console.error("General error:", error);
+        onSendMessage("Error: Could not retrieve response from AI.");
+      }
     }
   }
 };
+  
   
 
   const handleLikeButtonClick = () => {
