@@ -6,7 +6,7 @@ import {
   IoHome,
   IoPeople,
   IoSettingsOutline,
-  IoNewspaperOutline,
+  IoPersonOutline,
 } from "react-icons/io5";
 import { useDisclosure } from "@nextui-org/react";
 import { SettingsModal } from ".";
@@ -70,11 +70,11 @@ const SideBar = () => {
             </li>
             <li>
               <Link
-                href="https://www.chess.com/today"
+                href="https://www.telegram.me/NOAH_AZZ"
                 target="_blank"
                 className="flex items-center justify-end lg:justify-center sm:px-5 py-4 sm:py-2 text-white hover:bg-slate-900 group"
               >
-                <IoNewspaperOutline size={iconWidth} className="m-1 sm:m-0" />
+                <IoPersonOutline size={iconWidth} className="m-1 sm:m-0" />
                 <span className="ms-3 hidden lg:block">News</span>
               </Link>
             </li>
