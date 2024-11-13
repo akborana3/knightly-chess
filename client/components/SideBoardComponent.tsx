@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { Theme } from "emoji-picker-react";
@@ -16,6 +15,7 @@ import { useBoardStore } from "@/app/store";
 import { Tabs, Tab, Button, useDisclosure } from "@nextui-org/react";
 import { GameModal, SettingsModal } from ".";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 interface SideBoardProps {
   onSendMessage: (message: string) => void;
@@ -28,8 +28,9 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
 }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [message, setMessage] = useState("");
+  const [chatResponses, setChatResponses] = useState<Message[]>([]);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const moves = useBoardStore((state) => state.moves);
+  const moves = useBoardStore((state) => state.moves); // Fetch the moves list
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [showGameModal, setShowGameModal] = useState(false);
   const gameOver = useBoardStore((state) => state.gameOver);
@@ -48,23 +49,63 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         setShowEmojiPicker(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [emojiPickerRef]);
 
-  const handleEmojiClick = (emojiObject: { emoji: any }) => {
-    const emoji = emojiObject.emoji;
-    setMessage((prevMessage) => prevMessage + emoji);
+  // API call function that includes all moves
+  const sendChatToApi = async (userMessage: string) => {
+    try {
+      // Combine all moves into a single string with space-separated moves
+      const movesHistory = moves.join(" ");
+      const response = await axios.post(
+        "https://us-central1-aia-app-4a84d.cloudfunctions.net/api/chat-completion",
+        {
+          max_tokens: 1000,
+          messages: [
+            {
+              content:
+                "You are a chess expert. When the user provides their game moves, guide them with the next move and provide an explanation.",
+              role: "system",
+            },
+            {
+              content: `Game moves so far: ${movesHistory}. ${userMessage}`,
+              role: "user",
+            },
+          ],
+          model: "gpt-3.5-turbo",
+          stream: false,
+          temperature: 0.7,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Accept-Encoding": "gzip",
+            "User-Agent": "okhttp/4.10.0",
+          },
+        }
+      );
+      return response.data.content;
+    } catch (error) {
+      console.error("Error fetching chat response:", error);
+      return "Sorry, something went wrong with the chat response.";
+    }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      onSendMessage(message);
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && message.trim()) {
+      // Display user's message
+      onSendMessage(message.trim());
       setMessage("");
+
+      // Send the message and moves history to the API and display the response
+      const apiResponse = await sendChatToApi(message.trim());
+      setChatResponses((prevResponses) => [
+        ...prevResponses,
+        { username: "System", content: apiResponse },
+      ]);
     }
   };
 
@@ -111,6 +152,12 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
                       <span className="px-1">{msg.content}</span>
                     </div>
                   ))}
+                {chatResponses.map((response, index) => (
+                  <div key={index} className="flex items-start">
+                    <span className="text-yellow-400">{response.username}:</span>
+                    <span className="px-1">{response.content}</span>
+                  </div>
+                ))}
               </div>
             </div>
             {/* Chat Input */}
@@ -123,7 +170,6 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyUp={handleKeyPress}
               />
-
               {/* Emoji Picker */}
               {showEmojiPicker && (
                 <div className="absolute bottom-12 right-0">
@@ -133,7 +179,6 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
                   />
                 </div>
               )}
-
               {/* Smiley Icon */}
               <MdOutlineEmojiEmotions
                 size={20}
@@ -224,3 +269,4 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
 };
 
 export default SideBoardComponent;
+                    
