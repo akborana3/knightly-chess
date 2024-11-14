@@ -65,13 +65,18 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
 
   const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
   if (e.key === "Enter") {
+    // Combine previous moves and the current message for the prompt
+    const newMoves = [...allMoves, message];
+    const userPrompt = newMoves.join(" "); // This ensures all moves are sent, including the current one
+
+    // Send the message to the chat display
     onSendMessage(message);
-    setAllMoves((prevMoves) => [...prevMoves, message]);
-    setMessage("");
 
-    // Combine the user's current move with all previous moves
-    const userPrompt = allMoves.join(" ") + " " + message; // Concatenate all moves and the new message
+    // Update the state with the latest move
+    setAllMoves(newMoves);
+    setMessage(""); // Clear the input field
 
+    // Prepare the data payload for the API request
     const data = {
       userPrompt: userPrompt
     };
@@ -88,12 +93,12 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         }
       );
 
-      // Log the full response data for debugging
+      // Log full response data to help debug any formatting issues
       console.log('Full API Response Data:', response.data);
 
       if (response && response.data) {
-        // Attempt to access the AI message, with fallback for unexpected formats
-        const aiResponse = response.data.message || response.data.response || response.data; // Modify based on actual response structure
+        // Try to access the AI response, checking different response structures
+        const aiResponse = response.data.message || response.data.response || response.data;
 
         console.log('Parsed AI Response:', aiResponse);
 
@@ -127,6 +132,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   }
 };
+
 
 
   
