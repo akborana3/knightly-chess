@@ -86,22 +86,29 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         }
       );
 
-      // Log the entire response to examine its structure
-      console.log('API Response:', response);
+      // Log the full response data to understand its structure
+      console.log('Full API Response Data:', response.data);
 
+      // Attempt to retrieve the message, assuming the response contains a `message` field
       if (response && response.data) {
-        // Try to access the response data and adjust if necessary
-        const aiResponse = response.data.message || response.data; // Adjust based on actual structure
-        console.log('AI Response:', aiResponse);
-        onSendMessage(aiResponse);
+        const aiResponse = response.data.message || response.data;  // Adjust here if necessary
+        console.log('Parsed AI Response:', aiResponse);
+        
+        // Check if `aiResponse` is a string or another expected type
+        if (typeof aiResponse === 'string') {
+          onSendMessage(aiResponse);
+        } else {
+          console.error("Unexpected AI response format: Expected a string, got:", aiResponse);
+          onSendMessage("Error: AI response format was not as expected.");
+        }
       } else {
-        console.error("Unexpected response format:", response.data);
+        console.error("Empty or invalid response format:", response.data);
         onSendMessage("Error: AI response format was not as expected.");
       }
     } catch (error) {
       // Log detailed error information for troubleshooting
       if (axios.isAxiosError(error)) {
-        console.error("Axios Error:", error.toJSON()); // Full error details for Axios-specific errors
+        console.error("Axios Error Details:", error.toJSON()); // Full error details for Axios-specific errors
         if (error.code === "ECONNABORTED") {
           console.error("Request Timeout:", error.message);
           onSendMessage("Error: Request timed out.");
@@ -119,6 +126,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   }
 };
+
   
           
   
