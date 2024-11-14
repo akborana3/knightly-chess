@@ -86,19 +86,19 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         }
       );
 
-      // Log the full response data to understand its structure
+      // Log full response data for debugging
       console.log('Full API Response Data:', response.data);
 
-      // Attempt to retrieve the message, assuming the response contains a `message` field
       if (response && response.data) {
-        const aiResponse = response.data.message || response.data;  // Adjust here if necessary
+        // Attempt to access the AI message, with fallback for unexpected formats
+        const aiResponse = response.data.message || response.data.response || response.data; // Modify based on actual response structure
+
         console.log('Parsed AI Response:', aiResponse);
-        
-        // Check if `aiResponse` is a string or another expected type
+
         if (typeof aiResponse === 'string') {
           onSendMessage(aiResponse);
         } else {
-          console.error("Unexpected AI response format: Expected a string, got:", aiResponse);
+          console.error("Unexpected AI response format. Expected a string but received:", aiResponse);
           onSendMessage("Error: AI response format was not as expected.");
         }
       } else {
@@ -106,9 +106,8 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         onSendMessage("Error: AI response format was not as expected.");
       }
     } catch (error) {
-      // Log detailed error information for troubleshooting
       if (axios.isAxiosError(error)) {
-        console.error("Axios Error Details:", error.toJSON()); // Full error details for Axios-specific errors
+        console.error("Axios Error Details:", error.toJSON());
         if (error.code === "ECONNABORTED") {
           console.error("Request Timeout:", error.message);
           onSendMessage("Error: Request timed out.");
@@ -126,6 +125,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   }
 };
+
 
   
           
