@@ -69,26 +69,19 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     setAllMoves((prevMoves) => [...prevMoves, message]);
     setMessage("");
 
-    const systemPrompt = "you are a chess expert when user give you steps of his game moves then you will give him his next move with explanation";
     const userPrompt = allMoves.join(" ");
 
     const data = {
-      model: "gpt-4o",
-      temperature: 0.9,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
+      userPrompt: userPrompt
     };
 
     try {
       const response = await axios.post(
-        "https://mpzxsmlptc4kfw5qw2h6nat6iu0hvxiw.lambda-url.us-east-2.on.aws/process",
+        "https://akmoviedl.vercel.app/api/chessgpt",
         data,
         {
           headers: {
-            "Authorization": "Bearer sk-proj-hZn6l5KJd6n8kLJzHzyAT3BlbkFJitztuVQn17ElVhezrFyI",
-            "Content-Type": "application/json; charset=UTF-8"
+            "Content-Type": "application/json"
           },
           timeout: 20000
         }
@@ -122,6 +115,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   }
 };
+          
   
 
   const handleLikeButtonClick = () => {
