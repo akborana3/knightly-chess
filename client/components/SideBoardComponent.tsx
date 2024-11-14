@@ -69,7 +69,9 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     setAllMoves((prevMoves) => [...prevMoves, message]);
     setMessage("");
 
-    const userPrompt = allMoves.join(" ");
+    // Combine the user's current move with all previous moves
+    const userPrompt = allMoves.join(" ") + " " + message; // Concatenate all moves and the new message
+
     const data = {
       userPrompt: userPrompt
     };
@@ -86,7 +88,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
         }
       );
 
-      // Log full response data for debugging
+      // Log the full response data for debugging
       console.log('Full API Response Data:', response.data);
 
       if (response && response.data) {
