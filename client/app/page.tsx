@@ -24,7 +24,7 @@ export default function Home() {
             openModal("computer");
           }}
         >
-          Against Computer
+          Against Sassy
         </Button>
       </div>
       <GameSelectionModal
