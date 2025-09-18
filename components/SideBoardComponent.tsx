@@ -53,7 +53,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [message, setMessage] = useState("");
   const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const moves = useBoardStore((state) => state.moves);
+  const moves = useBoardStore((state) => state.moves as string[]);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [showGameModal, setShowGameModal] = useState(false);
   const gameOver = useBoardStore((state) => state.gameOver);
@@ -325,3 +325,4 @@ Given this, what is the best next move for my side? Respond with a short explana
 };
 
 export default SideBoardComponent;
+
