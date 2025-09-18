@@ -13,9 +13,33 @@ import {
 import { BsArrowRepeat } from "react-icons/bs";
 import { Message } from "@/public/utils/types";
 import { useBoardStore } from "@/app/store";
-import { Tabs, Tab, Button, useDisclosure } from "@nextui-org/react";
+import { Tabs, Tab, Button, useDisclosure, Spinner } from "@nextui-org/react";
 import { GameModal, SettingsModal } from ".";
 import toast from "react-hot-toast";
+
+// Utility: Detect if message is asking for a suggested move.
+function isMoveSuggestionRequest(msg: string) {
+  const triggers = [
+    "suggest move",
+    "best move",
+    "what should i play",
+    "help move",
+    "next move?",
+    "recommend move",
+    "good move",
+    "what now"
+  ];
+  return triggers.some(trig => msg.toLowerCase().includes(trig));
+}
+
+// Utility: Format moves array as PGN string (simple version)
+function movesToPGN(moves: string[]) {
+  let pgn = "";
+  for (let i = 0; i < moves.length; i += 2) {
+    pgn += `${Math.floor(i / 2) + 1}. ${moves[i]}${moves[i + 1] ? " " + moves[i + 1] : ""} `;
+  }
+  return pgn.trim();
+}
 
 interface SideBoardProps {
   onSendMessage: (message: string) => void;
@@ -39,6 +63,9 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
   const currentFEN = useBoardStore((state) => state.currentFEN);
   const router = useRouter();
 
+  // AI state
+  const [aiLoading, setAiLoading] = useState(false);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -61,10 +88,65 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     setMessage((prevMessage) => prevMessage + emoji);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      onSendMessage(message);
+      await handleSend(message);
       setMessage("");
+    }
+  };
+
+  // Send message, intercept AI questions
+  const handleSend = async (msg: string) => {
+    if (!msg.trim()) return;
+    // AI suggestion
+    if (isMoveSuggestionRequest(msg)) {
+      setAiLoading(true);
+
+      // Add user query to chat
+      onSendMessage(msg);
+
+      try {
+        // Compose the OpenAI prompt
+        const prompt = `
+I am playing chess, and here are the moves so far (in algebraic notation):
+${movesToPGN(moves)}
+Current position FEN: ${currentFEN}
+Given this, what is the best next move for my side? Respond with a short explanation and the move in algebraic notation. Only one move, please.
+        `;
+
+        // OpenAI API call
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "User-Agent": "Dart/3.4 (dart:io)",
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip",
+            "Authorization": "Bearer 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",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-2024-08-06",
+            messages: [
+              { role: "system", content: "You are a chess grandmaster. You help users by suggesting the best chess move in algebraic notation, and explain reasoning briefly." },
+              { role: "user", content: prompt }
+            ],
+            max_tokens: 200,
+            temperature: 0.2
+          })
+        });
+        const data = await response.json();
+        const aiText =
+          data?.choices?.[0]?.message?.content ||
+          "Sorry, I couldn't find a move suggestion.";
+        // Add AI's reply to chat
+        onSendMessage(`[AI Suggestion]: ${aiText}`);
+      } catch (err) {
+        onSendMessage("[AI Suggestion]: Sorry, AI move suggestion failed.");
+      } finally {
+        setAiLoading(false);
+      }
+    } else {
+      onSendMessage(msg);
     }
   };
 
@@ -102,13 +184,31 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto max-h-[480px] px-4 py-1">
               <div className="flex flex-col-reverse space-y-1">
+                {aiLoading && (
+                  <div className="flex items-start">
+                    <span className="text-yellow-400">AI:</span>
+                    <span className="px-1">
+                      <Spinner size="sm" color="warning" /> Thinking...
+                    </span>
+                  </div>
+                )}
                 {messages
                   .slice()
                   .reverse()
                   .map((msg, index) => (
                     <div key={index} className="flex items-start">
-                      <span className="text-yellow-400">{msg.username}:</span>
-                      <span className="px-1">{msg.content}</span>
+                      <span
+                        className={
+                          msg.content.startsWith("[AI Suggestion]:")
+                            ? "text-purple-400"
+                            : "text-yellow-400"
+                        }
+                      >
+                        {msg.username || (msg.content.startsWith("[AI Suggestion]:") ? "AI" : "")}:
+                      </span>
+                      <span className="px-1">
+                        {msg.content.replace("[AI Suggestion]:", "")}
+                      </span>
                     </div>
                   ))}
               </div>
@@ -122,6 +222,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyUp={handleKeyPress}
+                disabled={aiLoading}
               />
 
               {/* Emoji Picker */}
