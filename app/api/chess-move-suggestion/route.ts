@@ -3,28 +3,25 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // HARDCODED API KEY AND USER ID -- For testing only!
+  // HARDCODED API KEY AND USER ID
   const API_URL = "https://api.appzone.tech/v1/chat/completions";
   const API_KEY = "az-chatai-key";
   const USER_ID = "$RCAnonymousID:244d823996e54fa5ae6150981da30ba9";
 
-  // Logging incoming request
   console.log("Incoming chess-move-suggestion request:", JSON.stringify(body));
 
   const payload = {
     model: "gpt-4.1-mini",
-    stream: false,
+    stream: false, // You can turn this to true if you want streaming, but this code supports both.
     messages: body.messages,
     isSubscribed: false,
     web_search: false,
     reason: false
   };
 
-  // Logging outgoing payload
   console.log("Outgoing payload to AppZone API:", JSON.stringify(payload));
 
-  let apiResponse, apiData, apiText = "";
-
+  let apiResponse;
   try {
     apiResponse = await fetch(API_URL, {
       method: "POST",
@@ -41,33 +38,59 @@ export async function POST(req: NextRequest) {
   }
 
   if (!apiResponse.ok) {
-    // Log error response
     const errorText = await apiResponse.text();
     console.error("AppZone API error:", apiResponse.status, errorText);
     return NextResponse.json({ error: "API Error", status: apiResponse.status, details: errorText }, { status: apiResponse.status });
   }
 
+  // Try to parse the response as a stream (text, line by line)
+  let suggestion = "";
   try {
-    apiData = await apiResponse.json();
-  } catch (jsonErr) {
-    console.error("JSON parse error:", jsonErr);
-    return NextResponse.json({ error: "Failed to parse AppZone response", details: String(jsonErr) }, { status: 500 });
-  }
+    const raw = await apiResponse.text();
 
-  // Log response data
-  console.log("AppZone API response:", JSON.stringify(apiData));
+    // Log the raw response
+    console.log("Raw AppZone API response:", raw.length > 200 ? raw.slice(0,200)+"..." : raw);
 
-  // Parse suggestion text from response
-  if (apiData.choices) {
-    for (const choice of apiData.choices) {
-      apiText += choice.message?.content ?? choice.delta?.content ?? "";
+    // If response starts with 'data:', it's a streamed response.
+    if (raw.startsWith('data:')) {
+      const lines = raw.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonText = line.slice(6).trim();
+          if (jsonText === "[DONE]") break;
+          try {
+            const json = JSON.parse(jsonText);
+            if (json.choices) {
+              for (const choice of json.choices) {
+                suggestion += choice.delta?.content ?? choice.message?.content ?? "";
+              }
+            }
+          } catch (jsonErr) {
+            // Ignore individual line errors, but log them
+            console.warn("JSON parse error in stream line:", jsonErr, line);
+          }
+        }
+      }
+    } else {
+      // If not streamed, try normal JSON
+      const json = JSON.parse(raw);
+      if (json.choices) {
+        for (const choice of json.choices) {
+          suggestion += choice.message?.content ?? choice.delta?.content ?? "";
+        }
+      }
     }
+  } catch (err) {
+    console.error("Failed to parse AppZone response", err);
+    return NextResponse.json({ error: "Failed to parse AppZone response", details: String(err) }, { status: 500 });
   }
 
-  if (!apiText) {
+  if (!suggestion) {
     console.warn("No suggestion text found in AppZone response.");
-    apiText = "Sorry, no suggestion generated.";
+    suggestion = "Sorry, no suggestion generated.";
   }
 
-  return NextResponse.json({ suggestion: apiText });
+  console.log("Final suggestion:", suggestion);
+
+  return NextResponse.json({ suggestion });
 }
