@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
+  // HARDCODED API KEY AND USER ID -- For testing only!
   const API_URL = "https://api.appzone.tech/v1/chat/completions";
-  const API_KEY = process.env.APPZONE_API_KEY;
-  const USER_ID = process.env.APPZONE_USER_ID;
+  const API_KEY = "az-chatai-key";
+  const USER_ID = "$RCAnonymousID:244d823996e54fa5ae6150981da30ba9";
+
+  // Logging incoming request
+  console.log("Incoming chess-move-suggestion request:", JSON.stringify(body));
 
   const payload = {
     model: "gpt-4.1-mini",
@@ -16,30 +20,54 @@ export async function POST(req: NextRequest) {
     reason: false
   };
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      'Content-Type': "application/json",
-      'Authorization': `Bearer ${API_KEY}`,
-      'x-user-id': USER_ID || "$RCAnonymousID:244d823996e54fa5ae6150981da30ba9"
-    },
-    body: JSON.stringify(payload),
-  });
+  // Logging outgoing payload
+  console.log("Outgoing payload to AppZone API:", JSON.stringify(payload));
 
-  if (!response.ok) {
-    return NextResponse.json({ error: "API Error", status: response.status }, { status: response.status });
+  let apiResponse, apiData, apiText = "";
+
+  try {
+    apiResponse = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        'Content-Type': "application/json",
+        'Authorization': `Bearer ${API_KEY}`,
+        'x-user-id': USER_ID
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (fetchErr) {
+    console.error("Fetch error:", fetchErr);
+    return NextResponse.json({ error: "Failed to call AppZone API", details: String(fetchErr) }, { status: 500 });
   }
 
-  const data = await response.json();
+  if (!apiResponse.ok) {
+    // Log error response
+    const errorText = await apiResponse.text();
+    console.error("AppZone API error:", apiResponse.status, errorText);
+    return NextResponse.json({ error: "API Error", status: apiResponse.status, details: errorText }, { status: apiResponse.status });
+  }
 
-  // The API returns choices[].delta.content (possibly in streaming chunks, but we use stream: false)
-  let fullContent = "";
-  if (data.choices) {
-    for (const choice of data.choices) {
-      // If streaming, would be choice.delta.content, but for non-stream: choice.message.content
-      fullContent += choice.message?.content ?? choice.delta?.content ?? "";
+  try {
+    apiData = await apiResponse.json();
+  } catch (jsonErr) {
+    console.error("JSON parse error:", jsonErr);
+    return NextResponse.json({ error: "Failed to parse AppZone response", details: String(jsonErr) }, { status: 500 });
+  }
+
+  // Log response data
+  console.log("AppZone API response:", JSON.stringify(apiData));
+
+  // Parse suggestion text from response
+  if (apiData.choices) {
+    for (const choice of apiData.choices) {
+      apiText += choice.message?.content ?? choice.delta?.content ?? "";
     }
   }
 
-  return NextResponse.json({ suggestion: fullContent });
+  if (!apiText) {
+    console.warn("No suggestion text found in AppZone response.");
+    apiText = "Sorry, no suggestion generated.";
+  }
+
+  return NextResponse.json({ suggestion: apiText });
 }
