@@ -17,21 +17,6 @@ import { Tabs, Tab, Button, useDisclosure, Spinner } from "@nextui-org/react";
 import { GameModal, SettingsModal } from ".";
 import toast from "react-hot-toast";
 
-// Utility: Detect if message is asking for a suggested move.
-function isMoveSuggestionRequest(msg: string) {
-  const triggers = [
-    "suggest move",
-    "best move",
-    "what should i play",
-    "help move",
-    "next move?",
-    "recommend move",
-    "good move",
-    "what now"
-  ];
-  return triggers.some(trig => msg.toLowerCase().includes(trig));
-}
-
 // Utility: Format moves array as PGN string (simple version)
 function movesToPGN(moves: string[]) {
   let pgn = "";
@@ -39,6 +24,24 @@ function movesToPGN(moves: string[]) {
     pgn += `${Math.floor(i / 2) + 1}. ${moves[i]}${moves[i + 1] ? " " + moves[i + 1] : ""} `;
   }
   return pgn.trim();
+}
+
+// Utility: Checks if user is asking for move suggestion or making a chess-related query
+function isChessQuery(msg: string) {
+  // If query contains move/suggest/next/recommend/good/opening or chess terms, send moves context
+  const keywords = [
+    "move",
+    "suggest",
+    "next",
+    "recommend",
+    "good",
+    "opening",
+    "play",
+    "checkmate",
+    "strategy",
+    "chess"
+  ];
+  return keywords.some((word) => msg.toLowerCase().includes(word));
 }
 
 interface SideBoardProps {
@@ -53,6 +56,7 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [message, setMessage] = useState("");
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  // Explicit cast for type safety from Zustand store (String[] to string[])
   const moves = useBoardStore((state) => state.moves as string[]);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [showGameModal, setShowGameModal] = useState(false);
@@ -95,58 +99,56 @@ const SideBoardComponent: React.FC<SideBoardProps> = ({
     }
   };
 
-  // Send message, intercept AI questions
+  // Send message, always send to AI, but if chess-related send context
   const handleSend = async (msg: string) => {
     if (!msg.trim()) return;
-    // AI suggestion
-    if (isMoveSuggestionRequest(msg)) {
-      setAiLoading(true);
 
-      // Add user query to chat
-      onSendMessage(msg);
+    setAiLoading(true);
 
-      try {
-        // Compose the OpenAI prompt
-        const prompt = `
-I am playing chess, and here are the moves so far (in algebraic notation):
+    // Add user query to chat
+    onSendMessage(msg);
+
+    try {
+      let aiPrompt = "";
+
+      if (isChessQuery(msg)) {
+        // If the message is chess related, send moves and FEN for context
+        aiPrompt = `
+You are an expert chess assistant. The user is playing a chess game. Here is the current position in FEN:
+${currentFEN}
+Here is the move history (algebraic notation):
 ${movesToPGN(moves)}
-Current position FEN: ${currentFEN}
-Given this, what is the best next move for my side? Respond with a short explanation and the move in algebraic notation. Only one move, please.
-        `;
+User's message: "${msg}"
 
-        // OpenAI API call
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "User-Agent": "Dart/3.4 (dart:io)",
-            "Accept": "application/json",
-            "Accept-Encoding": "gzip",
-            "Authorization": "Bearer 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",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-2024-08-06",
-            messages: [
-              { role: "system", content: "You are a chess grandmaster. You help users by suggesting the best chess move in algebraic notation, and explain reasoning briefly." },
-              { role: "user", content: prompt }
-            ],
-            max_tokens: 200,
-            temperature: 0.2
-          })
-        });
-        const data = await response.json();
-        const aiText =
-          data?.choices?.[0]?.message?.content ||
-          "Sorry, I couldn't find a move suggestion.";
-        // Add AI's reply to chat
-        onSendMessage(`[AI Suggestion]: ${aiText}`);
-      } catch (err) {
-        onSendMessage("[AI Suggestion]: Sorry, AI move suggestion failed.");
-      } finally {
-        setAiLoading(false);
+If the user asks for a move, only suggest one best move in algebraic notation and explain briefly. If the message is general chess strategy (not a move), answer helpfully. If it's not chess-related, politely say so.
+        `;
+      } else {
+        // General chat, just forward the user's message
+        aiPrompt = `
+You are an expert chess assistant. The user says: "${msg}"
+
+If the message is chess-related, help accordingly. If not, politely say you only answer chess-related queries.
+        `;
       }
-    } else {
-      onSendMessage(msg);
+
+      // API call to our backend (Next.js API route)
+      const response = await fetch("/api/chess-move-suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "user", content: [{ type: "text", text: aiPrompt }] }
+          ]
+        }),
+      });
+
+      const data = await response.json();
+      const aiText = data?.suggestion || "Sorry, I couldn't find a suggestion.";
+      onSendMessage(`[AI Suggestion]: ${aiText}`);
+    } catch (err) {
+      onSendMessage("[AI Suggestion]: Sorry, AI suggestion failed.");
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -325,4 +327,3 @@ Given this, what is the best next move for my side? Respond with a short explana
 };
 
 export default SideBoardComponent;
-
